@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ETCBL HR — Login</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .login-form h2{font-size:20px;margin-bottom:5px}
+  .login-form>.sub{color:var(--muted);font-size:13px;margin-bottom:22px}
+</style>
+</head>
+<body>
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-logo">
+      <h1>ETCBL <span>HR</span></h1>
+      <p>Human Resource Management System</p>
+      <p style="font-size:11px;margin-top:2px;opacity:.55">etcblglobal.com</p>
+    </div>
+    <div class="login-divider"></div>
+    <div class="login-form">
+      <h2>Welcome back</h2>
+      <p class="sub">Sign in to your HR account</p>
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input id="username" type="text" placeholder="Enter username" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input id="password" type="password" placeholder="Enter password" autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary login-btn" onclick="doLogin()">Sign In</button>
+      <div id="err" class="error-msg"></div>
+    </div>
+    <div class="login-hint">
+      <strong>Demo credentials</strong><br>
+      Admin: <strong>admin</strong> / <strong>admin123</strong><br>
+      Employee: <strong>rkarim</strong> / <strong>emp123</strong>
+    </div>
+  </div>
+</div>
+<script src="js/core.js"></script>
+<script>
+  DB.init();
+  // If already logged in, redirect
+  const sess = DB.auth.session();
+  if (sess) window.location.href = sess.role==='admin' ? 'admin.html' : 'employee.html';
+
+  document.getElementById('password').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+  document.getElementById('username').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+
+  function doLogin() {
+    const u = document.getElementById('username').value.trim();
+    const p = document.getElementById('password').value;
+    const err = document.getElementById('err');
+    if (!u || !p) { err.textContent='Please enter username and password.'; err.style.display='block'; return; }
+    const sess = DB.auth.login(u, p);
+    if (!sess) { err.textContent='Invalid username or password.'; err.style.display='block'; return; }
+    window.location.href = sess.role==='admin' ? 'admin.html' : 'employee.html';
+  }
+</script>
+</body>
+</html>
