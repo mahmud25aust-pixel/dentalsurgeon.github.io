@@ -43,7 +43,6 @@
 <script src="js/core.js"></script>
 <script>
   DB.init();
-  // If already logged in, redirect
   const sess = DB.auth.session();
   if (sess) window.location.href = sess.role==='admin' ? 'admin.html' : 'employee.html';
 

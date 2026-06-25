@@ -26,12 +26,11 @@ const DB = {
       { id:'E005', name:'Nasreen Rahman',  email:'nrahman@etcblglobal.com',  phone:'01511-567890', dept:'Operations',             designation:'Operations Manager', joinDate:'2020-08-01', salary:85000, status:'active', gender:'Female', address:'Gulshan, Dhaka' },
     ];
 
-    // Attendance: seed weekdays from June 1 to June 24
     const attendance = [];
     let aid = 1;
     const empIds = employees.map(e => e.id);
     for (let day = 1; day <= 24; day++) {
-      const d = new Date(2026, 5, day); // June 2026
+      const d = new Date(2026, 5, day);
       if (d.getDay() === 0 || d.getDay() === 6) continue;
       const dateStr = `2026-06-${String(day).padStart(2,'0')}`;
       empIds.forEach(empId => {
@@ -77,7 +76,6 @@ const DB = {
     ls('etcbl_payroll', payroll);
   },
 
-  // ── Auth ──
   auth: {
     login(username, password) {
       const u = gl('etcbl_users').find(u => u.username === username && u.password === password);
@@ -96,7 +94,6 @@ const DB = {
     }
   },
 
-  // ── Employees ──
   employees: {
     all() { return gl('etcbl_employees'); },
     get(id) { return gl('etcbl_employees').find(e => e.id===id)||null; },
@@ -118,7 +115,6 @@ const DB = {
     remove(id) { ls('etcbl_employees', gl('etcbl_employees').filter(e=>e.id!==id)); }
   },
 
-  // ── Users ──
   users: {
     all() { return gl('etcbl_users'); },
     byEmpId(empId) { return gl('etcbl_users').find(u=>u.empId===empId)||null; },
@@ -139,7 +135,6 @@ const DB = {
     }
   },
 
-  // ── Attendance ──
   attendance: {
     all() { return gl('etcbl_attendance'); },
     byEmp(empId) { return gl('etcbl_attendance').filter(a=>a.empId===empId); },
@@ -185,7 +180,6 @@ const DB = {
     }
   },
 
-  // ── Leaves ──
   leaves: {
     all() { return gl('etcbl_leaves'); },
     byEmp(empId) { return gl('etcbl_leaves').filter(l=>l.empId===empId); },
@@ -212,7 +206,6 @@ const DB = {
     remove(id) { ls('etcbl_leaves', gl('etcbl_leaves').filter(l=>l.id!==id)); }
   },
 
-  // ── Payroll ──
   payroll: {
     all() { return gl('etcbl_payroll'); },
     byEmp(empId) { return gl('etcbl_payroll').filter(p=>p.empId===empId); },
@@ -251,7 +244,6 @@ const DB = {
   }
 };
 
-// ── Shared helpers ──
 function gl(k)   { return JSON.parse(localStorage.getItem(k)||'[]'); }
 function ls(k,v) { localStorage.setItem(k, JSON.stringify(v)); }
 function todayStr() { return new Date().toISOString().split('T')[0]; }
@@ -279,7 +271,6 @@ function buildPayEntry(emp, month, status, paidOn) {
   return { empId:emp.id, month, basic, houseRent, medical, transport, overtime, tax, pf, otherDed, gross, net, status, paidOn, generatedOn:todayStr() };
 }
 
-// ── UI helpers (used in HTML pages) ──
 function fmtDate(s) {
   if (!s) return '—';
   const d = new Date(s+'T00:00:00');
