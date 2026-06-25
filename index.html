@@ -8,10 +8,19 @@
 <style>
   .login-form h2{font-size:20px;margin-bottom:5px}
   .login-form>.sub{color:var(--muted);font-size:13px;margin-bottom:22px}
+  #page-loader{position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:10px}
+  .sp{width:36px;height:36px;border:3px solid #e2e8f0;border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
-<div class="login-page">
+
+<div id="page-loader">
+  <div class="sp"></div>
+  <div style="font-size:14px;font-weight:600;color:var(--primary)">Connecting to database…</div>
+</div>
+
+<div class="login-page" id="login-wrap" style="display:none">
   <div class="login-card">
     <div class="login-logo">
       <h1>ETCBL <span>HR</span></h1>
@@ -30,7 +39,7 @@
         <label for="password">Password</label>
         <input id="password" type="password" placeholder="Enter password" autocomplete="current-password">
       </div>
-      <button class="btn btn-primary login-btn" onclick="doLogin()">Sign In</button>
+      <button class="btn btn-primary login-btn" id="login-btn" onclick="doLogin()">Sign In</button>
       <div id="err" class="error-msg"></div>
     </div>
     <div class="login-hint">
@@ -40,24 +49,48 @@
     </div>
   </div>
 </div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="js/core.js"></script>
 <script>
-  DB.init();
-  // If already logged in, redirect
-  const sess = DB.auth.session();
-  if (sess) window.location.href = sess.role==='admin' ? 'admin.html' : 'employee.html';
+  async function start() {
+    const sess = DB.auth.session();
+    if (sess) { window.location.href = sess.role === 'admin' ? 'admin.html' : 'employee.html'; return; }
+    await DB.init();
+    document.getElementById('page-loader').style.display = 'none';
+    document.getElementById('login-wrap').style.display = '';
+    document.getElementById('username').focus();
+  }
+  start();
 
-  document.getElementById('password').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
-  document.getElementById('username').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
-  function doLogin() {
-    const u = document.getElementById('username').value.trim();
-    const p = document.getElementById('password').value;
+  async function doLogin() {
+    const u   = document.getElementById('username').value.trim();
+    const p   = document.getElementById('password').value;
     const err = document.getElementById('err');
-    if (!u || !p) { err.textContent='Please enter username and password.'; err.style.display='block'; return; }
-    const sess = DB.auth.login(u, p);
-    if (!sess) { err.textContent='Invalid username or password.'; err.style.display='block'; return; }
-    window.location.href = sess.role==='admin' ? 'admin.html' : 'employee.html';
+    const btn = document.getElementById('login-btn');
+    if (!u || !p) { err.textContent = 'Please enter username and password.'; err.style.display = 'block'; return; }
+    btn.textContent = 'Signing in…';
+    btn.disabled = true;
+    err.style.display = 'none';
+    try {
+      const sess = await DB.auth.login(u, p);
+      if (!sess) {
+        err.textContent = 'Invalid username or password.';
+        err.style.display = 'block';
+        btn.textContent = 'Sign In';
+        btn.disabled = false;
+        return;
+      }
+      window.location.href = sess.role === 'admin' ? 'admin.html' : 'employee.html';
+    } catch(e) {
+      err.textContent = 'Connection error. Please try again.';
+      err.style.display = 'block';
+      btn.textContent = 'Sign In';
+      btn.disabled = false;
+    }
   }
 </script>
 </body>

@@ -5,9 +5,20 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ETCBL HR — Employee Portal</title>
 <link rel="stylesheet" href="css/style.css">
+<style>
+  #page-loader{position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:10px}
+  .sp{width:36px;height:36px;border:3px solid #e2e8f0;border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
 </head>
 <body>
-<div class="layout">
+
+<div id="page-loader">
+  <div class="sp"></div>
+  <div style="font-size:14px;font-weight:600;color:var(--primary)">Loading…</div>
+</div>
+
+<div class="layout" id="app" style="display:none">
 
 <!-- ── Sidebar ── -->
 <aside class="sidebar">
@@ -40,12 +51,11 @@
       <div class="stats-grid" id="dash-stats"></div>
       <div class="grid-2">
         <div>
-          <!-- Clock Widget -->
           <div class="clock-widget">
             <div class="clock-time" id="live-clock">00:00:00</div>
             <div class="clock-date" id="live-date"></div>
             <div class="clock-actions">
-              <button class="btn btn-clock-in" id="btn-checkin" onclick="doCheckIn()">✅ Check In</button>
+              <button class="btn btn-clock-in"  id="btn-checkin"  onclick="doCheckIn()">✅ Check In</button>
               <button class="btn btn-clock-out" id="btn-checkout" onclick="doCheckOut()" style="display:none">🔴 Check Out</button>
             </div>
             <div class="clock-status" id="clock-status"></div>
@@ -157,7 +167,7 @@
         <div class="form-group"><label>Start Date *</label><input id="lv-start" type="date"></div>
         <div class="form-group"><label>End Date *</label><input id="lv-end" type="date"></div>
       </div>
-      <div class="form-group"><label>Reason *</label><textarea id="lv-reason" placeholder="Brief description of why you need leave…"></textarea></div>
+      <div class="form-group"><label>Reason *</label><textarea id="lv-reason" placeholder="Brief description…"></textarea></div>
       <div id="lv-days-preview" style="display:none;font-size:13px;color:var(--muted);margin-bottom:10px"></div>
       <div class="form-actions">
         <button class="btn btn-outline" onclick="closeModal('modal-leave')">Cancel</button>
@@ -203,33 +213,47 @@
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="js/core.js"></script>
 <script>
-// ── Init ──
-DB.init();
-const sess = DB.auth.guard();
-if (!sess) throw new Error('Not authorized');
-const EMP_ID = sess.empId;
-if (!EMP_ID) { alert('No employee record linked to this account.'); DB.auth.logout(); }
+let sess = null;
+let EMP_ID = null;
+let empData = null;
 
-const emp = DB.employees.get(EMP_ID);
-document.getElementById('sb-name').textContent = sess.name;
-document.getElementById('sb-desig').textContent = emp?.designation || 'Employee';
+async function init() {
+  sess = DB.auth.guard();
+  if (!sess) return;
+  EMP_ID = sess.empId;
+  if (!EMP_ID) { alert('No employee record linked to this account.'); DB.auth.logout(); return; }
 
-const now = new Date();
-document.getElementById('topbar-date').textContent =
-  now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  await DB.init();
+  empData = await DB.employees.get(EMP_ID);
+
+  document.getElementById('sb-name').textContent   = sess.name;
+  document.getElementById('sb-desig').textContent  = empData?.designation || 'Employee';
+  document.getElementById('topbar-date').textContent =
+    new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  document.getElementById('page-loader').style.display = 'none';
+  document.getElementById('app').style.display = '';
+
+  updateClock();
+  setInterval(updateClock, 1000);
+  await renderDashboard();
+}
+init();
 
 // ── Navigation ──
-function show(sec, btn) {
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.querySelectorAll('.nav-link').forEach(b=>b.classList.remove('active'));
-  document.getElementById('sec-'+sec).classList.add('active');
+async function show(sec, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(b => b.classList.remove('active'));
+  document.getElementById('sec-' + sec).classList.add('active');
   if (btn) btn.classList.add('active');
   const titles = {dashboard:'Dashboard',profile:'My Profile',attendance:'My Attendance',leaves:'My Leaves',payroll:'My Payslips'};
-  document.getElementById('topbar-title').textContent = titles[sec]||sec;
+  document.getElementById('topbar-title').textContent = titles[sec] || sec;
   const renders = {dashboard:renderDashboard,profile:renderProfile,attendance:renderEmpAtt,leaves:renderEmpLeaves,payroll:renderEmpPay};
-  if (renders[sec]) renders[sec]();
+  if (renders[sec]) await renders[sec]();
 }
 
 // ── Live Clock ──
@@ -240,11 +264,9 @@ function updateClock() {
   document.getElementById('live-date').textContent =
     n.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 }
-setInterval(updateClock, 1000);
-updateClock();
 
-function updateCheckInButtons() {
-  const rec = DB.attendance.today(EMP_ID);
+async function updateCheckInButtons() {
+  const rec    = await DB.attendance.today(EMP_ID);
   const btnIn  = document.getElementById('btn-checkin');
   const btnOut = document.getElementById('btn-checkout');
   const status = document.getElementById('clock-status');
@@ -260,44 +282,44 @@ function updateCheckInButtons() {
   }
 }
 
-function doCheckIn() {
-  const rec = DB.attendance.checkIn(EMP_ID);
-  updateCheckInButtons();
+async function doCheckIn() {
+  await DB.attendance.checkIn(EMP_ID);
+  await updateCheckInButtons();
 }
 
-function doCheckOut() {
-  DB.attendance.checkOut(EMP_ID);
-  updateCheckInButtons();
-  renderDashboard();
+async function doCheckOut() {
+  await DB.attendance.checkOut(EMP_ID);
+  await updateCheckInButtons();
+  await renderDashboard();
 }
 
 // ── DASHBOARD ──
-function renderDashboard() {
-  if (!emp) return;
-  updateCheckInButtons();
-  const ym  = todayStr().slice(0,7);
-  const st  = DB.attendance.monthStats(EMP_ID, ym);
-  const lvs = DB.leaves.byEmp(EMP_ID);
-  const pay = DB.payroll.byEmp(EMP_ID);
-  const latestPay = pay.sort((a,b)=>b.month.localeCompare(a.month))[0];
+async function renderDashboard() {
+  if (!empData) return;
+  await updateCheckInButtons();
+  const ym  = todayStr().slice(0, 7);
+  const [st, lvs, pay] = await Promise.all([
+    DB.attendance.monthStats(EMP_ID, ym),
+    DB.leaves.byEmp(EMP_ID),
+    DB.payroll.byEmp(EMP_ID)
+  ]);
+  const latestPay = pay[0];
 
   document.getElementById('dash-stats').innerHTML = `
     <div class="stat-card"><div class="stat-icon si-blue">📋</div><div><div class="stat-value">${st.total}</div><div class="stat-label">Working Days (${fmtMonth(ym)})</div></div></div>
     <div class="stat-card"><div class="stat-icon si-green">✅</div><div><div class="stat-value">${st.present}</div><div class="stat-label">Days Present</div></div></div>
     <div class="stat-card"><div class="stat-icon si-amber">⏰</div><div><div class="stat-value">${st.late}</div><div class="stat-label">Late Arrivals</div></div></div>
-    <div class="stat-card"><div class="stat-icon si-purple">💰</div><div><div class="stat-value">${latestPay?fmtBDT(latestPay.net):'—'}</div><div class="stat-label">Last Net Pay</div></div></div>
+    <div class="stat-card"><div class="stat-icon si-purple">💰</div><div><div class="stat-value">${latestPay ? fmtBDT(latestPay.net) : '—'}</div><div class="stat-label">Last Net Pay</div></div></div>
   `;
 
-  // Month attendance mini
   document.getElementById('month-att').innerHTML = `
     <div class="att-stat"><div class="att-stat-val" style="color:var(--success)">${st.present}</div><div class="att-stat-lbl">Present</div></div>
     <div class="att-stat"><div class="att-stat-val" style="color:var(--warning)">${st.late}</div><div class="att-stat-lbl">Late</div></div>
     <div class="att-stat"><div class="att-stat-val" style="color:var(--danger)">${st.absent}</div><div class="att-stat-lbl">Absent</div></div>
   `;
 
-  // Pending leaves
-  const pending = lvs.filter(l=>l.status==='pending');
-  document.getElementById('my-pending-leaves').innerHTML = pending.length ? pending.map(l=>`
+  const pending = lvs.filter(l => l.status === 'pending');
+  document.getElementById('my-pending-leaves').innerHTML = pending.length ? pending.map(l => `
     <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
       <div>
         <div class="font-semibold" style="font-size:13px">${esc(l.type)}</div>
@@ -306,83 +328,89 @@ function renderDashboard() {
       ${badgeLeave(l.status)}
     </div>`).join('') : '<div style="padding:12px 0;color:var(--muted);font-size:13px">No pending leave requests.</div>';
 
-  // Recent payslips
-  const recentPay = pay.slice(0,3);
-  document.getElementById('my-recent-pay').innerHTML = recentPay.length ? recentPay.map(p=>`
+  document.getElementById('my-recent-pay').innerHTML = pay.slice(0,3).map(p => `
     <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
       <div>
         <div class="font-semibold" style="font-size:13px">${fmtMonth(p.month)}</div>
         <div class="text-sm text-muted">${fmtBDT(p.net)} net</div>
       </div>
       ${badgePay(p.status)}
-    </div>`).join('') : '<div style="padding:12px 0;color:var(--muted);font-size:13px">No payslips yet.</div>';
+    </div>`).join('') || '<div style="padding:12px 0;color:var(--muted);font-size:13px">No payslips yet.</div>';
 }
 
 // ── PROFILE ──
-function renderProfile() {
-  if (!emp) return;
+async function renderProfile() {
+  const e = await DB.employees.get(EMP_ID);
+  if (!e) return;
+  empData = e;
   document.getElementById('profile-body').innerHTML = `
     <div class="profile-header">
-      <div class="avatar avatar-lg ${avClass(emp.name)}">${initials(emp.name)}</div>
+      <div class="avatar avatar-lg ${avClass(e.name)}">${initials(e.name)}</div>
       <div class="profile-info">
-        <h3>${esc(emp.name)}</h3>
-        <p>${esc(emp.designation)} · ${esc(emp.dept)}</p>
-        <p style="margin-top:4px"><span class="badge ${emp.status==='active'?'b-success':'b-secondary'}">${cap(emp.status)}</span></p>
+        <h3>${esc(e.name)}</h3>
+        <p>${esc(e.designation)} · ${esc(e.dept)}</p>
+        <p style="margin-top:4px"><span class="badge ${e.status==='active'?'b-success':'b-secondary'}">${cap(e.status)}</span></p>
       </div>
     </div>
     <div class="card">
-      <div class="card-title">Personal & Employment Details</div>
+      <div class="card-title">Personal &amp; Employment Details</div>
       <div class="info-grid">
-        <div class="info-item"><label>Employee ID</label><div class="val">${emp.id}</div></div>
-        <div class="info-item"><label>Email</label><div class="val">${esc(emp.email)}</div></div>
-        <div class="info-item"><label>Phone</label><div class="val">${esc(emp.phone||'—')}</div></div>
-        <div class="info-item"><label>Gender</label><div class="val">${esc(emp.gender||'—')}</div></div>
-        <div class="info-item"><label>Department</label><div class="val">${esc(emp.dept)}</div></div>
-        <div class="info-item"><label>Designation</label><div class="val">${esc(emp.designation)}</div></div>
-        <div class="info-item"><label>Join Date</label><div class="val">${fmtDate(emp.joinDate)}</div></div>
-        <div class="info-item"><label>Address</label><div class="val">${esc(emp.address||'—')}</div></div>
+        <div class="info-item"><label>Employee ID</label><div class="val">${e.id}</div></div>
+        <div class="info-item"><label>Email</label><div class="val">${esc(e.email)}</div></div>
+        <div class="info-item"><label>Phone</label><div class="val">${esc(e.phone||'—')}</div></div>
+        <div class="info-item"><label>Gender</label><div class="val">${esc(e.gender||'—')}</div></div>
+        <div class="info-item"><label>Department</label><div class="val">${esc(e.dept)}</div></div>
+        <div class="info-item"><label>Designation</label><div class="val">${esc(e.designation)}</div></div>
+        <div class="info-item"><label>Join Date</label><div class="val">${fmtDate(e.joinDate)}</div></div>
+        <div class="info-item"><label>Address</label><div class="val">${esc(e.address||'—')}</div></div>
       </div>
     </div>`;
 }
 
-function openEditProfile() {
-  const e = DB.employees.get(EMP_ID);
+async function openEditProfile() {
+  const e = await DB.employees.get(EMP_ID);
   if (!e) return;
-  document.getElementById('p-phone').value = e.phone||'';
-  document.getElementById('p-addr').value  = e.address||'';
+  document.getElementById('p-phone').value = e.phone || '';
+  document.getElementById('p-addr').value  = e.address || '';
   document.getElementById('p-pwd').value   = '';
   document.getElementById('modal-profile').classList.add('open');
 }
 
-function saveProfile() {
+async function saveProfile() {
   const phone = document.getElementById('p-phone').value.trim();
   const addr  = document.getElementById('p-addr').value.trim();
   const pwd   = document.getElementById('p-pwd').value;
-  DB.employees.update(EMP_ID, { phone, address:addr });
+  await DB.employees.update(EMP_ID, { phone, address: addr });
   if (pwd) {
-    const user = DB.users.byEmpId(EMP_ID);
-    if (user) DB.users.resetPwd(user.id, pwd);
+    const user = await DB.users.byEmpId(EMP_ID);
+    if (user) await DB.users.resetPwd(user.id, pwd);
   }
   closeModal('modal-profile');
   showAlert(document.getElementById('profile-alert'), 'Profile updated successfully.');
-  renderProfile();
+  await renderProfile();
 }
 
 // ── ATTENDANCE ──
+let _attMonthInit = false;
 function initAttMonthFilter() {
+  if (_attMonthInit) return;
   const sel = document.getElementById('att-month-filter');
-  if (sel.options.length === 0) {
-    ['2026-06','2026-05','2026-04','2026-03'].forEach(m=>sel.add(new Option(fmtMonth(m),m)));
-    sel.value = todayStr().slice(0,7);
-  }
+  ['2026-06','2026-05','2026-04','2026-03'].forEach(m => sel.add(new Option(fmtMonth(m), m)));
+  sel.value = todayStr().slice(0, 7);
+  _attMonthInit = true;
 }
 
-function renderEmpAtt() {
+async function renderEmpAtt() {
   initAttMonthFilter();
-  const ym   = document.getElementById('att-month-filter').value || todayStr().slice(0,7);
-  const recs = DB.attendance.byEmp(EMP_ID).filter(a=>a.date.startsWith(ym));
-  recs.sort((a,b)=>b.date.localeCompare(a.date));
-  const st = DB.attendance.monthStats(EMP_ID, ym);
+  const ym   = document.getElementById('att-month-filter').value || todayStr().slice(0, 7);
+  const all  = await DB.attendance.byEmp(EMP_ID);
+  const recs = all.filter(a => a.date.startsWith(ym));
+  const st   = {
+    present: recs.filter(a => a.status==='present').length,
+    late:    recs.filter(a => a.status==='late').length,
+    absent:  recs.filter(a => a.status==='absent').length,
+    total:   recs.length
+  };
   const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
   document.getElementById('att-summary-row').innerHTML = `
@@ -392,8 +420,8 @@ function renderEmpAtt() {
     <div class="att-stat"><div class="att-stat-val">${st.total}</div><div class="att-stat-lbl">Working Days</div></div>
   `;
 
-  document.getElementById('emp-att-tbody').innerHTML = recs.length ? recs.map(a=>{
-    const d = new Date(a.date+'T00:00:00');
+  document.getElementById('emp-att-tbody').innerHTML = recs.length ? recs.map(a => {
+    const d = new Date(a.date + 'T00:00:00');
     return `<tr>
       <td>${fmtDate(a.date)}</td>
       <td>${days[d.getDay()]}</td>
@@ -407,52 +435,49 @@ function renderEmpAtt() {
 
 // ── LEAVES ──
 function openLeaveModal() {
-  document.getElementById('lv-start').value = '';
-  document.getElementById('lv-end').value   = '';
+  document.getElementById('lv-start').value  = '';
+  document.getElementById('lv-end').value    = '';
   document.getElementById('lv-reason').value = '';
   document.getElementById('lv-days-preview').style.display = 'none';
   document.getElementById('modal-leave').classList.add('open');
 }
 
 function calcDays() {
-  const s = document.getElementById('lv-start').value;
-  const e = document.getElementById('lv-end').value;
+  const s    = document.getElementById('lv-start').value;
+  const e    = document.getElementById('lv-end').value;
   const prev = document.getElementById('lv-days-preview');
-  if (!s||!e) { prev.style.display='none'; return 0; }
-  const diff = Math.round((new Date(e)-new Date(s))/(86400000))+1;
-  if (diff<1) { prev.style.display='block'; prev.textContent='End date must be after start date.'; return 0; }
-  prev.style.display='block';
-  prev.textContent = `Duration: ${diff} day${diff>1?'s':''}`;
+  if (!s || !e) { prev.style.display = 'none'; return 0; }
+  const diff = Math.round((new Date(e) - new Date(s)) / 86400000) + 1;
+  prev.style.display = 'block';
+  if (diff < 1) { prev.textContent = 'End date must be after start date.'; return 0; }
+  prev.textContent = `Duration: ${diff} day${diff > 1 ? 's' : ''}`;
   return diff;
 }
 
 document.getElementById('lv-start').addEventListener('change', calcDays);
 document.getElementById('lv-end').addEventListener('change', calcDays);
 
-function submitLeave() {
+async function submitLeave() {
   const type   = document.getElementById('lv-type').value;
   const start  = document.getElementById('lv-start').value;
   const end    = document.getElementById('lv-end').value;
   const reason = document.getElementById('lv-reason').value.trim();
   const alert  = document.getElementById('leave-alert');
   const days   = calcDays();
-
-  if (!start||!end||!reason)     { showAlert(alert,'Please fill all fields.','danger'); return; }
-  if (days<1)                    { showAlert(alert,'End date must be after start date.','danger'); return; }
-
-  DB.leaves.add({ empId:EMP_ID, type, start, end, days, reason });
+  if (!start || !end || !reason) { showAlert(alert, 'Please fill all fields.', 'danger'); return; }
+  if (days < 1)                  { showAlert(alert, 'End date must be after start date.', 'danger'); return; }
+  await DB.leaves.add({ empId: EMP_ID, type, start, end, days, reason });
   closeModal('modal-leave');
   showAlert(alert, 'Leave request submitted. Awaiting approval.');
-  renderEmpLeaves();
+  await renderEmpLeaves();
 }
 
-function renderEmpLeaves() {
+async function renderEmpLeaves() {
   const stF = document.getElementById('lv-status-filter').value;
-  let lvs = DB.leaves.byEmp(EMP_ID);
-  if (stF) lvs = lvs.filter(l=>l.status===stF);
-  lvs.sort((a,b)=>b.applied.localeCompare(a.applied));
+  let lvs   = await DB.leaves.byEmp(EMP_ID);
+  if (stF) lvs = lvs.filter(l => l.status === stF);
 
-  document.getElementById('emp-lv-tbody').innerHTML = lvs.length ? lvs.map(l=>`
+  document.getElementById('emp-lv-tbody').innerHTML = lvs.length ? lvs.map(l => `
     <tr>
       <td>${esc(l.type)}</td>
       <td>${fmtDate(l.start)}</td>
@@ -461,37 +486,38 @@ function renderEmpLeaves() {
       <td style="max-width:140px">${esc(l.reason)}</td>
       <td>${fmtDate(l.applied)}</td>
       <td>${badgeLeave(l.status)}</td>
-      <td>${l.status==='pending'
+      <td>${l.status === 'pending'
         ? `<button class="btn btn-sm btn-danger" onclick="cancelLeave('${l.id}')">Cancel</button>` : ''}</td>
     </tr>`).join('') : `<tr><td colspan="8" class="no-data">No leave records</td></tr>`;
 }
 
-function cancelLeave(id) {
+async function cancelLeave(id) {
   if (!confirm('Cancel this leave request?')) return;
-  DB.leaves.remove(id);
+  await DB.leaves.remove(id);
   showAlert(document.getElementById('leave-alert'), 'Leave request cancelled.', 'danger');
-  renderEmpLeaves();
+  await renderEmpLeaves();
 }
 
 // ── PAYROLL ──
-function renderEmpPay() {
-  const recs = DB.payroll.byEmp(EMP_ID).sort((a,b)=>b.month.localeCompare(a.month));
-  document.getElementById('emp-pay-tbody').innerHTML = recs.length ? recs.map(p=>`
+async function renderEmpPay() {
+  const recs = await DB.payroll.byEmp(EMP_ID);
+  document.getElementById('emp-pay-tbody').innerHTML = recs.length ? recs.map(p => `
     <tr>
       <td class="font-semibold">${fmtMonth(p.month)}</td>
       <td>${fmtBDT(p.basic)}</td>
       <td>${fmtBDT(p.gross)}</td>
-      <td>${fmtBDT(p.tax+p.pf+p.otherDed)}</td>
+      <td>${fmtBDT(p.tax + p.pf + p.otherDed)}</td>
       <td class="font-bold">${fmtBDT(p.net)}</td>
       <td>${badgePay(p.status)}</td>
       <td><button class="btn btn-sm btn-outline" onclick="viewPayslip('${p.id}')">View</button></td>
     </tr>`).join('') : `<tr><td colspan="7" class="no-data">No payslips available</td></tr>`;
 }
 
-function viewPayslip(id) {
-  const p   = DB.payroll.byEmp(EMP_ID).find(x=>x.id===id);
+async function viewPayslip(id) {
+  const recs = await DB.payroll.byEmp(EMP_ID);
+  const p    = recs.find(x => x.id === id);
   if (!p) return;
-  const e   = DB.employees.get(p.empId);
+  const e = empData;
   document.getElementById('payslip-body').innerHTML = `
     <div class="payslip">
       <div class="payslip-header">
@@ -528,12 +554,9 @@ function viewPayslip(id) {
 // ── Utilities ──
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
-document.querySelectorAll('.modal-overlay').forEach(el=>{
-  el.addEventListener('click', e=>{ if(e.target===el) el.classList.remove('open'); });
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
 });
-
-// Initial
-renderDashboard();
 </script>
 </body>
 </html>
