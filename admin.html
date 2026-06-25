@@ -5,9 +5,22 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ETCBL HR — Admin</title>
 <link rel="stylesheet" href="css/style.css">
+<style>
+  #page-loader{position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:10px}
+  .sp{width:36px;height:36px;border:3px solid #e2e8f0;border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
 </head>
 <body>
-<div class="layout">
+
+<div id="page-loader">
+  <div class="sp"></div>
+  <div style="font-size:14px;font-weight:600;color:var(--primary)">Loading HR Dashboard…</div>
+</div>
+
+<div class="layout" id="app" style="display:none">
+
+<!-- ── Sidebar ── -->
 <aside class="sidebar">
   <div class="sidebar-logo">ETCBL <span>HR</span><small>Admin Portal</small></div>
   <nav>
@@ -25,19 +38,31 @@
     <button class="btn-logout" onclick="DB.auth.logout()">Sign Out</button>
   </div>
 </aside>
+
+<!-- ── Main ── -->
 <div class="main-content">
   <div class="topbar">
     <div class="topbar-title" id="topbar-title">Dashboard</div>
     <div class="topbar-date" id="topbar-date"></div>
   </div>
   <div class="content">
+
+    <!-- ─── DASHBOARD ─── -->
     <div id="sec-dashboard" class="section active">
       <div class="stats-grid" id="dash-stats"></div>
       <div class="grid-2">
-        <div class="card"><div class="card-title">Pending Leave Requests</div><div id="dash-leaves-list"></div></div>
-        <div class="card"><div class="card-title">Today's Attendance Summary</div><div id="dash-att-summary"></div></div>
+        <div class="card">
+          <div class="card-title">Pending Leave Requests</div>
+          <div id="dash-leaves-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Today's Attendance Summary</div>
+          <div id="dash-att-summary"></div>
+        </div>
       </div>
     </div>
+
+    <!-- ─── EMPLOYEES ─── -->
     <div id="sec-employees" class="section">
       <div class="page-header">
         <div><div class="page-title">Employees</div><div class="page-subtitle">Manage your team</div></div>
@@ -48,52 +73,84 @@
         <input id="emp-search" type="text" placeholder="🔍  Search name, dept, role…" oninput="renderEmps()" style="width:240px">
         <select id="emp-dept-filter" onchange="renderEmps()" style="width:180px">
           <option value="">All Departments</option>
-          <option>Information Technology</option><option>Human Resources</option>
-          <option>Finance &amp; Accounts</option><option>Sales &amp; Marketing</option>
-          <option>Operations</option><option>Management</option>
+          <option>Information Technology</option>
+          <option>Human Resources</option>
+          <option>Finance &amp; Accounts</option>
+          <option>Sales &amp; Marketing</option>
+          <option>Operations</option>
+          <option>Management</option>
         </select>
         <select id="emp-status-filter" onchange="renderEmps()" style="width:130px">
-          <option value="">All Status</option><option value="active">Active</option><option value="inactive">Inactive</option>
+          <option value="">All Status</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
         </select>
       </div>
-      <div class="table-wrap"><table>
-        <thead><tr><th>Employee</th><th>Department</th><th>Designation</th><th>Email</th><th>Phone</th><th>Join Date</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody id="emp-tbody"></tbody>
-      </table></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Employee</th><th>Department</th><th>Designation</th>
+            <th>Email</th><th>Phone</th><th>Join Date</th><th>Status</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="emp-tbody"></tbody>
+        </table>
+      </div>
     </div>
+
+    <!-- ─── ATTENDANCE ─── -->
     <div id="sec-attendance" class="section">
-      <div class="page-header"><div><div class="page-title">Attendance</div><div class="page-subtitle">Track employee presence</div></div></div>
+      <div class="page-header">
+        <div><div class="page-title">Attendance</div><div class="page-subtitle">Track employee presence</div></div>
+      </div>
       <div class="filter-bar">
         <select id="att-emp-filter" onchange="renderAtt()" style="width:200px"><option value="">All Employees</option></select>
         <input id="att-date-filter" type="date" onchange="renderAtt()" style="width:160px">
         <select id="att-status-filter" onchange="renderAtt()" style="width:140px">
-          <option value="">All Status</option><option value="present">Present</option><option value="late">Late</option><option value="absent">Absent</option>
+          <option value="">All Status</option>
+          <option value="present">Present</option>
+          <option value="late">Late</option>
+          <option value="absent">Absent</option>
         </select>
         <button class="btn btn-outline btn-sm" onclick="clearAttFilters()">Clear</button>
       </div>
-      <div class="table-wrap"><table>
-        <thead><tr><th>Employee</th><th>Date</th><th>Check In</th><th>Check Out</th><th>Hours</th><th>Status</th></tr></thead>
-        <tbody id="att-tbody"></tbody>
-      </table></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Employee</th><th>Date</th><th>Check In</th><th>Check Out</th><th>Hours</th><th>Status</th></tr></thead>
+          <tbody id="att-tbody"></tbody>
+        </table>
+      </div>
     </div>
+
+    <!-- ─── LEAVES ─── -->
     <div id="sec-leaves" class="section">
-      <div class="page-header"><div><div class="page-title">Leave Management</div><div class="page-subtitle">Review and respond to leave requests</div></div></div>
+      <div class="page-header">
+        <div><div class="page-title">Leave Management</div><div class="page-subtitle">Review and respond to leave requests</div></div>
+      </div>
       <div id="leave-alert"></div>
       <div class="filter-bar">
         <select id="lv-status-filter" onchange="renderLeaves()" style="width:150px">
-          <option value="">All Status</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
+          <option value="">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
         </select>
         <select id="lv-emp-filter" onchange="renderLeaves()" style="width:200px"><option value="">All Employees</option></select>
         <select id="lv-type-filter" onchange="renderLeaves()" style="width:170px">
           <option value="">All Types</option>
-          <option>Annual Leave</option><option>Sick Leave</option><option>Casual Leave</option><option>Medical Leave</option><option>Maternity/Paternity</option><option>Unpaid Leave</option>
+          <option>Annual Leave</option><option>Sick Leave</option>
+          <option>Casual Leave</option><option>Medical Leave</option>
+          <option>Maternity/Paternity</option><option>Unpaid Leave</option>
         </select>
       </div>
-      <div class="table-wrap"><table>
-        <thead><tr><th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Applied</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody id="lv-tbody"></tbody>
-      </table></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Applied</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="lv-tbody"></tbody>
+        </table>
+      </div>
     </div>
+
+    <!-- ─── PAYROLL ─── -->
     <div id="sec-payroll" class="section">
       <div class="page-header">
         <div><div class="page-title">Payroll</div><div class="page-subtitle">Manage employee salaries</div></div>
@@ -104,34 +161,55 @@
         <select id="pay-month-filter" onchange="renderPayroll()" style="width:170px"></select>
         <select id="pay-emp-filter" onchange="renderPayroll()" style="width:200px"><option value="">All Employees</option></select>
         <select id="pay-status-filter" onchange="renderPayroll()" style="width:140px">
-          <option value="">All Status</option><option value="pending">Pending</option><option value="paid">Paid</option>
+          <option value="">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="paid">Paid</option>
         </select>
       </div>
-      <div class="table-wrap"><table>
-        <thead><tr><th>Employee</th><th>Month</th><th>Basic</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody id="pay-tbody"></tbody>
-      </table></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Employee</th><th>Month</th><th>Basic</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="pay-tbody"></tbody>
+        </table>
+      </div>
       <div id="pay-total-row" style="margin-top:14px;text-align:right;font-weight:600;font-size:15px;color:var(--primary)"></div>
     </div>
+
   </div>
 </div>
-</div>
+</div><!-- /layout -->
 
+<!-- ─── MODALS ─── -->
+
+<!-- Employee Add/Edit -->
 <div id="modal-emp" class="modal-overlay">
   <div class="modal modal-lg">
-    <div class="modal-header"><div class="modal-title" id="emp-modal-title">Add Employee</div><button class="modal-close" onclick="closeModal('modal-emp')">&#x2715;</button></div>
+    <div class="modal-header">
+      <div class="modal-title" id="emp-modal-title">Add Employee</div>
+      <button class="modal-close" onclick="closeModal('modal-emp')">✕</button>
+    </div>
     <div class="modal-body">
       <input type="hidden" id="emp-id">
       <div class="form-grid">
         <div class="form-group"><label>Full Name *</label><input id="f-name" placeholder="e.g. Mohammad Rahman"></div>
         <div class="form-group"><label>Email *</label><input id="f-email" type="email" placeholder="name@etcblglobal.com"></div>
         <div class="form-group"><label>Phone *</label><input id="f-phone" placeholder="01X-XXXXXXXX"></div>
-        <div class="form-group"><label>Gender</label><select id="f-gender"><option>Male</option><option>Female</option><option>Other</option></select></div>
-        <div class="form-group"><label>Department *</label><select id="f-dept"><option>Information Technology</option><option>Human Resources</option><option>Finance &amp; Accounts</option><option>Sales &amp; Marketing</option><option>Operations</option><option>Management</option></select></div>
+        <div class="form-group"><label>Gender</label>
+          <select id="f-gender"><option>Male</option><option>Female</option><option>Other</option></select>
+        </div>
+        <div class="form-group"><label>Department *</label>
+          <select id="f-dept">
+            <option>Information Technology</option><option>Human Resources</option>
+            <option>Finance &amp; Accounts</option><option>Sales &amp; Marketing</option>
+            <option>Operations</option><option>Management</option>
+          </select>
+        </div>
         <div class="form-group"><label>Designation *</label><input id="f-desig" placeholder="Job title"></div>
         <div class="form-group"><label>Join Date *</label><input id="f-join" type="date"></div>
         <div class="form-group"><label>Basic Salary (৳) *</label><input id="f-salary" type="number" min="0" placeholder="50000"></div>
-        <div class="form-group"><label>Status</label><select id="f-status"><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+        <div class="form-group"><label>Status</label>
+          <select id="f-status"><option value="active">Active</option><option value="inactive">Inactive</option></select>
+        </div>
         <div class="form-group full"><label>Address</label><input id="f-addr" placeholder="Full address"></div>
       </div>
       <div class="separator"></div>
@@ -150,31 +228,49 @@
   </div>
 </div>
 
+<!-- Employee View -->
 <div id="modal-view-emp" class="modal-overlay">
   <div class="modal modal-lg">
-    <div class="modal-header"><div class="modal-title">Employee Details</div><button class="modal-close" onclick="closeModal('modal-view-emp')">&#x2715;</button></div>
+    <div class="modal-header">
+      <div class="modal-title">Employee Details</div>
+      <button class="modal-close" onclick="closeModal('modal-view-emp')">✕</button>
+    </div>
     <div class="modal-body" id="emp-view-body"></div>
   </div>
 </div>
 
+<!-- Generate Payroll -->
 <div id="modal-gen-pay" class="modal-overlay">
   <div class="modal">
-    <div class="modal-header"><div class="modal-title">Generate Payroll</div><button class="modal-close" onclick="closeModal('modal-gen-pay')">&#x2715;</button></div>
+    <div class="modal-header">
+      <div class="modal-title">Generate Payroll</div>
+      <button class="modal-close" onclick="closeModal('modal-gen-pay')">✕</button>
+    </div>
     <div class="modal-body">
-      <div class="form-group"><label>Select Month</label><input id="gen-pay-month" type="month" value="2026-06"></div>
-      <div class="form-group"><label>Employee (leave blank for all)</label><select id="gen-pay-emp"><option value="">All Employees</option></select></div>
+      <div class="form-group">
+        <label>Select Month</label>
+        <input id="gen-pay-month" type="month" value="2026-06">
+      </div>
+      <div class="form-group">
+        <label>Employee (leave blank for all)</label>
+        <select id="gen-pay-emp"><option value="">All Employees</option></select>
+      </div>
       <div id="gen-pay-msg" class="alert" style="display:none"></div>
       <div class="form-actions">
         <button class="btn btn-outline" onclick="closeModal('modal-gen-pay')">Cancel</button>
-        <button class="btn btn-primary" onclick="generatePayroll()">Generate</button>
+        <button class="btn btn-primary" id="gen-pay-btn" onclick="generatePayroll()">Generate</button>
       </div>
     </div>
   </div>
 </div>
 
+<!-- Payslip View -->
 <div id="modal-payslip" class="modal-overlay">
   <div class="modal modal-lg">
-    <div class="modal-header"><div class="modal-title">Payslip</div><button class="modal-close" onclick="closeModal('modal-payslip')">&#x2715;</button></div>
+    <div class="modal-header">
+      <div class="modal-title">Payslip</div>
+      <button class="modal-close" onclick="closeModal('modal-payslip')">✕</button>
+    </div>
     <div class="modal-body" id="payslip-body"></div>
     <div style="padding:0 22px 22px;display:flex;gap:10px;justify-content:flex-end">
       <button class="btn btn-outline" onclick="closeModal('modal-payslip')">Close</button>
@@ -183,144 +279,209 @@
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="js/core.js"></script>
 <script>
-DB.init();
-const sess = DB.auth.guard('admin');
-if (!sess) throw new Error('Not authorized');
-document.getElementById('sb-name').textContent = sess.name;
-const now = new Date();
-document.getElementById('topbar-date').textContent = now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+let sess = null;
 
-function show(sec, btn) {
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.querySelectorAll('.nav-link').forEach(b=>b.classList.remove('active'));
-  document.getElementById('sec-'+sec).classList.add('active');
+async function init() {
+  sess = DB.auth.guard('admin');
+  if (!sess) return;
+  document.getElementById('sb-name').textContent = sess.name;
+  document.getElementById('topbar-date').textContent =
+    new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  await DB.init();
+  document.getElementById('page-loader').style.display = 'none';
+  document.getElementById('app').style.display = '';
+  await renderDashboard();
+}
+init();
+
+// ── Navigation ──
+async function show(sec, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(b => b.classList.remove('active'));
+  document.getElementById('sec-' + sec).classList.add('active');
   if (btn) btn.classList.add('active');
   const titles = {dashboard:'Dashboard',employees:'Employees',attendance:'Attendance',leaves:'Leave Management',payroll:'Payroll'};
-  document.getElementById('topbar-title').textContent = titles[sec]||sec;
+  document.getElementById('topbar-title').textContent = titles[sec] || sec;
   const renders = {dashboard:renderDashboard,employees:renderEmps,attendance:renderAtt,leaves:renderLeaves,payroll:renderPayroll};
-  if (renders[sec]) renders[sec]();
+  if (renders[sec]) await renders[sec]();
 }
 
-function renderDashboard() {
-  const emps = DB.employees.all();
-  const today = todayStr();
-  const attToday = DB.attendance.byDate(today);
-  const present = attToday.filter(a=>a.checkIn).length;
-  const pLeaves = DB.leaves.pending();
-  const allPay = DB.payroll.all().filter(p=>p.month===today.slice(0,7));
-  const payDue = allPay.filter(p=>p.status==='pending').reduce((s,p)=>s+p.net,0);
+// ── DASHBOARD ──
+async function renderDashboard() {
+  const [emps, pLeaves, attToday] = await Promise.all([
+    DB.employees.all(),
+    DB.leaves.pending(),
+    DB.attendance.byDate(todayStr())
+  ]);
+  const present = attToday.filter(a => a.checkIn).length;
+  const allPay  = await DB.payroll.byMonth('2026-06');
+  const payDue  = allPay.filter(p => p.status === 'pending').reduce((s,p) => s + p.net, 0);
+
   document.getElementById('dash-stats').innerHTML = `
     <div class="stat-card"><div class="stat-icon si-blue">👥</div><div><div class="stat-value">${emps.length}</div><div class="stat-label">Total Employees</div></div></div>
     <div class="stat-card"><div class="stat-icon si-green">✅</div><div><div class="stat-value">${present}</div><div class="stat-label">Present Today</div></div></div>
     <div class="stat-card"><div class="stat-icon si-amber">⏳</div><div><div class="stat-value">${pLeaves.length}</div><div class="stat-label">Pending Leaves</div></div></div>
-    <div class="stat-card"><div class="stat-icon si-red">💸</div><div><div class="stat-value">${fmtBDT(payDue)}</div><div class="stat-label">Payroll Due</div></div></div>
+    <div class="stat-card"><div class="stat-icon si-red">💸</div><div><div class="stat-value">${fmtBDT(payDue)}</div><div class="stat-label">Payroll Due (Jun)</div></div></div>
   `;
-  const lv = pLeaves.slice(0,5);
-  document.getElementById('dash-leaves-list').innerHTML = lv.length ? lv.map(l=>{
-    const emp = DB.employees.get(l.empId);
+
+  const lv = pLeaves.slice(0, 5);
+  document.getElementById('dash-leaves-list').innerHTML = lv.length ? lv.map(l => {
+    const emp = emps.find(e => e.id === l.empId);
     return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
       <div class="emp-cell">
-        <div class="avatar ${avClass(emp?.name||'')}" style="width:28px;height:28px;font-size:11px">${initials(emp?.name||'')}</div>
+        <div class="avatar ${avClass(emp?.name||'')} avatar-sm">${initials(emp?.name||'')}</div>
         <div><div class="emp-name" style="font-size:13px">${esc(emp?.name||l.empId)}</div>
           <div class="emp-id">${esc(l.type)} · ${l.days} day${l.days>1?'s':''}</div></div>
       </div>
       <div style="display:flex;gap:6px">
         <button class="btn btn-sm btn-success" onclick="quickRespond('${l.id}','approved')">✓</button>
-        <button class="btn btn-sm btn-danger" onclick="quickRespond('${l.id}','rejected')">✗</button>
+        <button class="btn btn-sm btn-danger"  onclick="quickRespond('${l.id}','rejected')">✗</button>
       </div>
     </div>`;
   }).join('') : '<div class="no-data" style="padding:20px">No pending requests 🎉</div>';
+
   document.getElementById('dash-att-summary').innerHTML = `
     <div class="att-grid" style="grid-template-columns:repeat(3,1fr)">
       <div class="att-stat"><div class="att-stat-val" style="color:var(--success)">${present}</div><div class="att-stat-lbl">Present</div></div>
       <div class="att-stat"><div class="att-stat-val" style="color:var(--warning)">${attToday.filter(a=>a.status==='late').length}</div><div class="att-stat-lbl">Late</div></div>
       <div class="att-stat"><div class="att-stat-val" style="color:var(--danger)">${attToday.filter(a=>a.status==='absent').length}</div><div class="att-stat-lbl">Absent</div></div>
     </div>
-    <p style="font-size:12px;color:var(--muted);margin-top:10px">Date: ${fmtDate(today)} &nbsp;|&nbsp; ${emps.length} total employees</p>
+    <p style="font-size:12px;color:var(--muted);margin-top:10px">Date: ${fmtDate(todayStr())} &nbsp;|&nbsp; ${emps.length} total employees</p>
   `;
 }
 
-function quickRespond(id, status) {
-  DB.leaves.respond(id, status, sess.username);
-  renderDashboard();
+async function quickRespond(id, status) {
+  await DB.leaves.respond(id, status, sess.username);
   showAlert(document.getElementById('leave-alert'), `Leave ${status}.`, status==='approved'?'success':'danger');
+  await renderDashboard();
 }
 
-function renderEmps() {
-  const q = (document.getElementById('emp-search')?.value||'').toLowerCase();
-  const dept = document.getElementById('emp-dept-filter')?.value||'';
-  const st = document.getElementById('emp-status-filter')?.value||'';
-  let emps = DB.employees.all();
-  if (q) emps = emps.filter(e=>(e.name+e.dept+e.designation+e.email).toLowerCase().includes(q));
-  if (dept) emps = emps.filter(e=>e.dept===dept);
-  if (st) emps = emps.filter(e=>e.status===st);
-  document.getElementById('emp-tbody').innerHTML = emps.length ? emps.map(e=>`
+// ── EMPLOYEES ──
+let _allEmps = [];
+
+async function renderEmps() {
+  const q    = (document.getElementById('emp-search')?.value || '').toLowerCase();
+  const dept = document.getElementById('emp-dept-filter')?.value || '';
+  const st   = document.getElementById('emp-status-filter')?.value || '';
+  _allEmps = await DB.employees.all();
+  let emps = _allEmps;
+  if (q)    emps = emps.filter(e => (e.name+e.dept+e.designation+e.email).toLowerCase().includes(q));
+  if (dept) emps = emps.filter(e => e.dept === dept);
+  if (st)   emps = emps.filter(e => e.status === st);
+
+  document.getElementById('emp-tbody').innerHTML = emps.length ? emps.map(e => `
     <tr>
-      <td><div class="emp-cell"><div class="avatar ${avClass(e.name)}">${initials(e.name)}</div>
-        <div><div class="emp-name">${esc(e.name)}</div><div class="emp-id">${e.id}</div></div></div></td>
-      <td>${esc(e.dept)}</td><td>${esc(e.designation)}</td><td>${esc(e.email)}</td><td>${esc(e.phone)}</td>
+      <td><div class="emp-cell">
+        <div class="avatar ${avClass(e.name)}">${initials(e.name)}</div>
+        <div><div class="emp-name">${esc(e.name)}</div><div class="emp-id">${e.id}</div></div>
+      </div></td>
+      <td>${esc(e.dept)}</td>
+      <td>${esc(e.designation)}</td>
+      <td>${esc(e.email)}</td>
+      <td>${esc(e.phone)}</td>
       <td>${fmtDate(e.joinDate)}</td>
       <td><span class="badge ${e.status==='active'?'b-success':'b-secondary'}">${cap(e.status)}</span></td>
       <td><div class="table-actions">
-        <button class="btn-icon" title="View" onclick="viewEmployee('${e.id}')">&#128065;</button>
-        <button class="btn-icon" title="Edit" onclick="openEmpModal('${e.id}')">&#9999;&#65039;</button>
-        <button class="btn-icon danger" title="Delete" onclick="deleteEmp('${e.id}')">&#128465;</button>
+        <button class="btn-icon" title="View"   onclick="viewEmployee('${e.id}')">👁</button>
+        <button class="btn-icon" title="Edit"   onclick="openEmpModal('${e.id}')">✏️</button>
+        <button class="btn-icon danger" title="Delete" onclick="deleteEmp('${e.id}')">🗑</button>
       </div></td>
     </tr>`).join('') : `<tr><td colspan="8" class="no-data">No employees found</td></tr>`;
 }
 
-function openEmpModal(id) {
+async function openEmpModal(id) {
   const isEdit = !!id;
   document.getElementById('emp-modal-title').textContent = isEdit ? 'Edit Employee' : 'Add Employee';
   document.getElementById('emp-modal-user-section').style.display = isEdit ? 'none' : 'block';
   if (isEdit) {
-    const e = DB.employees.get(id);
+    const e = await DB.employees.get(id);
     if (!e) return;
-    document.getElementById('emp-id').value=e.id; document.getElementById('f-name').value=e.name;
-    document.getElementById('f-email').value=e.email; document.getElementById('f-phone').value=e.phone;
-    document.getElementById('f-gender').value=e.gender||'Male'; document.getElementById('f-dept').value=e.dept;
-    document.getElementById('f-desig').value=e.designation; document.getElementById('f-join').value=e.joinDate;
-    document.getElementById('f-salary').value=e.salary; document.getElementById('f-status').value=e.status;
-    document.getElementById('f-addr').value=e.address||'';
+    document.getElementById('emp-id').value    = e.id;
+    document.getElementById('f-name').value    = e.name;
+    document.getElementById('f-email').value   = e.email;
+    document.getElementById('f-phone').value   = e.phone;
+    document.getElementById('f-gender').value  = e.gender || 'Male';
+    document.getElementById('f-dept').value    = e.dept;
+    document.getElementById('f-desig').value   = e.designation;
+    document.getElementById('f-join').value    = e.joinDate;
+    document.getElementById('f-salary').value  = e.salary;
+    document.getElementById('f-status').value  = e.status;
+    document.getElementById('f-addr').value    = e.address || '';
   } else {
-    document.getElementById('emp-id').value='';
-    ['f-name','f-email','f-phone','f-desig','f-join','f-salary','f-addr','f-uname','f-upwd'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('f-status').value='active';
+    document.getElementById('emp-id').value = '';
+    ['f-name','f-email','f-phone','f-desig','f-join','f-salary','f-addr','f-uname','f-upwd'].forEach(fid => {
+      document.getElementById(fid).value = '';
+    });
+    document.getElementById('f-status').value = 'active';
   }
   document.getElementById('modal-emp').classList.add('open');
 }
 
-function saveEmployee() {
-  const id=document.getElementById('emp-id').value;
-  const name=document.getElementById('f-name').value.trim();
-  const email=document.getElementById('f-email').value.trim();
-  const phone=document.getElementById('f-phone').value.trim();
-  const salary=parseInt(document.getElementById('f-salary').value)||0;
-  const alert=document.getElementById('emp-alert');
-  if (!name||!email||!phone||!salary){showAlert(alert,'Please fill all required fields.','danger');return;}
-  const data={name,email,phone,salary,gender:document.getElementById('f-gender').value,dept:document.getElementById('f-dept').value,designation:document.getElementById('f-desig').value.trim(),joinDate:document.getElementById('f-join').value,status:document.getElementById('f-status').value,address:document.getElementById('f-addr').value.trim()};
-  if (id){DB.employees.update(id,data);showAlert(alert,`${name} updated successfully.`);}
-  else{const emp=DB.employees.add(data);const uname=document.getElementById('f-uname').value.trim();const upwd=document.getElementById('f-upwd').value;if(uname&&upwd){DB.users.add({username:uname,password:upwd,role:'employee',name:emp.name,empId:emp.id});}showAlert(alert,`${name} added successfully.`);}
-  closeModal('modal-emp');renderEmps();
+async function saveEmployee() {
+  const id     = document.getElementById('emp-id').value;
+  const name   = document.getElementById('f-name').value.trim();
+  const email  = document.getElementById('f-email').value.trim();
+  const phone  = document.getElementById('f-phone').value.trim();
+  const salary = parseInt(document.getElementById('f-salary').value) || 0;
+  const alert  = document.getElementById('emp-alert');
+  if (!name || !email || !phone || !salary) { showAlert(alert, 'Please fill all required fields.', 'danger'); return; }
+
+  const data = {
+    name, email, phone, salary,
+    gender:      document.getElementById('f-gender').value,
+    dept:        document.getElementById('f-dept').value,
+    designation: document.getElementById('f-desig').value.trim(),
+    joinDate:    document.getElementById('f-join').value,
+    status:      document.getElementById('f-status').value,
+    address:     document.getElementById('f-addr').value.trim()
+  };
+
+  if (id) {
+    await DB.employees.update(id, data);
+    showAlert(alert, `${name} updated successfully.`);
+  } else {
+    const emp   = await DB.employees.add(data);
+    const uname = document.getElementById('f-uname').value.trim();
+    const upwd  = document.getElementById('f-upwd').value;
+    if (uname && upwd) {
+      await DB.users.add({ username: uname, password: upwd, role: 'employee', name: emp.name, empId: emp.id });
+    }
+    showAlert(alert, `${name} added successfully.`);
+  }
+  closeModal('modal-emp');
+  await renderEmps();
 }
 
-function deleteEmp(id){
-  const e=DB.employees.get(id);if(!e)return;
-  if(!confirm(`Delete ${e.name}? This cannot be undone.`))return;
-  const user=DB.users.byEmpId(id);if(user)DB.users.remove(user.id);
-  DB.employees.remove(id);showAlert(document.getElementById('emp-alert'),`${e.name} removed.`,'danger');renderEmps();
+async function deleteEmp(id) {
+  const e = await DB.employees.get(id);
+  if (!e) return;
+  if (!confirm(`Delete ${e.name}? This cannot be undone.`)) return;
+  const user = await DB.users.byEmpId(id);
+  if (user) await DB.users.remove(user.id);
+  await DB.employees.remove(id);
+  showAlert(document.getElementById('emp-alert'), `${e.name} removed.`, 'danger');
+  await renderEmps();
 }
 
-function viewEmployee(id){
-  const e=DB.employees.get(id);if(!e)return;
-  const u=DB.users.byEmpId(id);const ym=todayStr().slice(0,7);
-  const st=DB.attendance.monthStats(id,ym);const lvs=DB.leaves.byEmp(id);
-  document.getElementById('emp-view-body').innerHTML=`
-    <div class="profile-header"><div class="avatar avatar-lg ${avClass(e.name)}">${initials(e.name)}</div>
-      <div class="profile-info"><h3>${esc(e.name)}</h3><p>${esc(e.designation)} &nbsp;&middot;&nbsp; ${esc(e.dept)}</p>
-        <p style="margin-top:4px"><span class="badge ${e.status==='active'?'b-success':'b-secondary'}">${cap(e.status)}</span></p></div></div>
+async function viewEmployee(id) {
+  const [e, u] = await Promise.all([DB.employees.get(id), DB.users.byEmpId(id)]);
+  if (!e) return;
+  const ym = todayStr().slice(0, 7);
+  const [st, lvs] = await Promise.all([DB.attendance.monthStats(id, ym), DB.leaves.byEmp(id)]);
+
+  document.getElementById('emp-view-body').innerHTML = `
+    <div class="profile-header">
+      <div class="avatar avatar-lg ${avClass(e.name)}">${initials(e.name)}</div>
+      <div class="profile-info">
+        <h3>${esc(e.name)}</h3>
+        <p>${esc(e.designation)} &nbsp;·&nbsp; ${esc(e.dept)}</p>
+        <p style="margin-top:4px"><span class="badge ${e.status==='active'?'b-success':'b-secondary'}">${cap(e.status)}</span></p>
+      </div>
+    </div>
     <div class="info-grid mb-6">
       <div class="info-item"><label>Employee ID</label><div class="val">${e.id}</div></div>
       <div class="info-item"><label>Email</label><div class="val">${esc(e.email)}</div></div>
@@ -329,7 +490,7 @@ function viewEmployee(id){
       <div class="info-item"><label>Join Date</label><div class="val">${fmtDate(e.joinDate)}</div></div>
       <div class="info-item"><label>Basic Salary</label><div class="val">${fmtBDT(e.salary)}</div></div>
       <div class="info-item"><label>Address</label><div class="val">${esc(e.address||'—')}</div></div>
-      <div class="info-item"><label>Login Account</label><div class="val">${u?`@${esc(u.username)}`:'No account'}</div></div>
+      <div class="info-item"><label>Login Account</label><div class="val">${u ? `@${esc(u.username)}` : 'No account'}</div></div>
     </div>
     <div class="card-title">Attendance This Month (${fmtMonth(ym)})</div>
     <div class="att-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
@@ -338,119 +499,249 @@ function viewEmployee(id){
       <div class="att-stat"><div class="att-stat-val" style="color:var(--danger)">${st.absent}</div><div class="att-stat-lbl">Absent</div></div>
     </div>
     <div class="card-title">Leave History</div>
-    <div class="table-wrap"><table><thead><tr><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th></tr></thead>
-      <tbody>${lvs.length?lvs.map(l=>`<tr><td>${esc(l.type)}</td><td>${fmtDate(l.start)}</td><td>${fmtDate(l.end)}</td><td>${l.days}</td><td>${badgeLeave(l.status)}</td></tr>`).join(''):`<tr><td colspan="5" class="no-data">No leave history</td></tr>`}</tbody>
-    </table></div>`;
+    <div class="table-wrap"><table>
+      <thead><tr><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th></tr></thead>
+      <tbody>${lvs.length ? lvs.map(l => `<tr>
+        <td>${esc(l.type)}</td><td>${fmtDate(l.start)}</td><td>${fmtDate(l.end)}</td>
+        <td>${l.days}</td><td>${badgeLeave(l.status)}</td>
+      </tr>`).join('') : `<tr><td colspan="5" class="no-data">No leave history</td></tr>`}</tbody>
+    </table></div>
+  `;
   document.getElementById('modal-view-emp').classList.add('open');
 }
 
-function initAttFilters(){
-  const sel=document.getElementById('att-emp-filter');
-  if(sel.options.length<=1)DB.employees.all().forEach(e=>{sel.add(new Option(e.name,e.id));});
-  if(!document.getElementById('att-date-filter').value)document.getElementById('att-date-filter').value=todayStr();
-}
-function clearAttFilters(){document.getElementById('att-emp-filter').value='';document.getElementById('att-date-filter').value='';document.getElementById('att-status-filter').value='';renderAtt();}
-function renderAtt(){
-  initAttFilters();
-  const empF=document.getElementById('att-emp-filter').value;
-  const dateF=document.getElementById('att-date-filter').value;
-  const statusF=document.getElementById('att-status-filter').value;
-  let recs=DB.attendance.all();
-  if(empF)recs=recs.filter(a=>a.empId===empF);
-  if(dateF)recs=recs.filter(a=>a.date===dateF);
-  if(statusF)recs=recs.filter(a=>a.status===statusF);
-  recs.sort((a,b)=>b.date.localeCompare(a.date));
-  document.getElementById('att-tbody').innerHTML=recs.length?recs.slice(0,200).map(a=>{
-    const emp=DB.employees.get(a.empId);
-    return `<tr><td><div class="emp-cell"><div class="avatar ${avClass(emp?.name||'')}" style="width:28px;height:28px;font-size:11px">${initials(emp?.name||'')}</div><span>${esc(emp?.name||a.empId)}</span></div></td><td>${fmtDate(a.date)}</td><td>${a.checkIn||'—'}</td><td>${a.checkOut||'—'}</td><td>${a.hours||'—'} h</td><td>${badgeAtt(a.status)}</td></tr>`;
-  }).join(''):`<tr><td colspan="6" class="no-data">No records found</td></tr>`;
+// ── ATTENDANCE ──
+let _attFiltersInit = false;
+async function initAttFilters() {
+  if (_attFiltersInit) return;
+  const sel = document.getElementById('att-emp-filter');
+  const emps = await DB.employees.all();
+  emps.forEach(e => sel.add(new Option(e.name, e.id)));
+  document.getElementById('att-date-filter').value = todayStr();
+  _attFiltersInit = true;
 }
 
-function initLeaveEmpFilter(){const sel=document.getElementById('lv-emp-filter');if(sel.options.length<=1)DB.employees.all().forEach(e=>{sel.add(new Option(e.name,e.id));});}
-function renderLeaves(){
-  initLeaveEmpFilter();
-  const stF=document.getElementById('lv-status-filter').value;
-  const empF=document.getElementById('lv-emp-filter').value;
-  const typF=document.getElementById('lv-type-filter').value;
-  let lvs=DB.leaves.all();
-  if(stF)lvs=lvs.filter(l=>l.status===stF);
-  if(empF)lvs=lvs.filter(l=>l.empId===empF);
-  if(typF)lvs=lvs.filter(l=>l.type===typF);
-  lvs.sort((a,b)=>b.applied.localeCompare(a.applied));
-  document.getElementById('lv-tbody').innerHTML=lvs.length?lvs.map(l=>{
-    const emp=DB.employees.get(l.empId);
-    const actions=l.status==='pending'?`<button class="btn btn-sm btn-success" onclick="respondLeave('${l.id}','approved')">Approve</button><button class="btn btn-sm btn-danger" onclick="respondLeave('${l.id}','rejected')">Reject</button>`:`<span style="font-size:12px;color:var(--muted)">Responded ${fmtDate(l.respondedOn)}</span>`;
-    return `<tr><td><div class="emp-cell"><div class="avatar ${avClass(emp?.name||'')}" style="width:28px;height:28px;font-size:11px">${initials(emp?.name||'')}</div><span>${esc(emp?.name||l.empId)}</span></div></td><td>${esc(l.type)}</td><td>${fmtDate(l.start)}</td><td>${fmtDate(l.end)}</td><td>${l.days}</td><td style="max-width:150px">${esc(l.reason)}</td><td>${fmtDate(l.applied)}</td><td>${badgeLeave(l.status)}</td><td><div class="table-actions">${actions}</div></td></tr>`;
-  }).join(''):`<tr><td colspan="9" class="no-data">No leave records found</td></tr>`;
+function clearAttFilters() {
+  document.getElementById('att-emp-filter').value    = '';
+  document.getElementById('att-date-filter').value   = '';
+  document.getElementById('att-status-filter').value = '';
+  renderAtt();
 }
-function respondLeave(id,status){DB.leaves.respond(id,status,sess.username);showAlert(document.getElementById('leave-alert'),`Leave ${status}.`,status==='approved'?'success':'danger');renderLeaves();}
 
-function initPayFilters(){
-  const mSel=document.getElementById('pay-month-filter');
-  if(mSel.options.length===0)['2026-06','2026-05','2026-04','2026-03'].forEach(m=>{mSel.add(new Option(fmtMonth(m),m));});
-  const eSel=document.getElementById('pay-emp-filter');if(eSel.options.length<=1)DB.employees.all().forEach(e=>{eSel.add(new Option(e.name,e.id));});
-  const gSel=document.getElementById('gen-pay-emp');if(gSel.options.length<=1)DB.employees.all().forEach(e=>{gSel.add(new Option(e.name,e.id));});
+async function renderAtt() {
+  await initAttFilters();
+  const empF    = document.getElementById('att-emp-filter').value;
+  const dateF   = document.getElementById('att-date-filter').value;
+  const statusF = document.getElementById('att-status-filter').value;
+  const emps    = await DB.employees.all();
+  let recs      = await DB.attendance.all();
+  if (empF)    recs = recs.filter(a => a.empId === empF);
+  if (dateF)   recs = recs.filter(a => a.date === dateF);
+  if (statusF) recs = recs.filter(a => a.status === statusF);
+
+  document.getElementById('att-tbody').innerHTML = recs.length ? recs.slice(0, 200).map(a => {
+    const emp = emps.find(e => e.id === a.empId);
+    return `<tr>
+      <td><div class="emp-cell">
+        <div class="avatar ${avClass(emp?.name||'')} avatar-sm" style="width:28px;height:28px;font-size:11px">${initials(emp?.name||'')}</div>
+        <span>${esc(emp?.name || a.empId)}</span>
+      </div></td>
+      <td>${fmtDate(a.date)}</td>
+      <td>${a.checkIn||'—'}</td>
+      <td>${a.checkOut||'—'}</td>
+      <td>${a.hours||'—'} h</td>
+      <td>${badgeAtt(a.status)}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6" class="no-data">No records found</td></tr>`;
 }
-function renderPayroll(){
-  initPayFilters();
-  const mo=document.getElementById('pay-month-filter').value;
-  const empF=document.getElementById('pay-emp-filter').value;
-  const stF=document.getElementById('pay-status-filter').value;
-  let recs=mo?DB.payroll.byMonth(mo):DB.payroll.all();
-  if(empF)recs=recs.filter(p=>p.empId===empF);
-  if(stF)recs=recs.filter(p=>p.status===stF);
-  const total=recs.reduce((s,p)=>s+p.net,0);
-  document.getElementById('pay-total-row').textContent=recs.length?`Total Net Pay: ${fmtBDT(total)}`:''; 
-  document.getElementById('pay-tbody').innerHTML=recs.length?recs.map(p=>{
-    const emp=DB.employees.get(p.empId);const ded=p.tax+p.pf+p.otherDed;
-    const markBtn=p.status==='pending'?`<button class="btn btn-sm btn-success" onclick="markPaid('${p.id}')">Mark Paid</button>`:''; 
-    return `<tr><td><div class="emp-cell"><div class="avatar ${avClass(emp?.name||'')}" style="width:28px;height:28px;font-size:11px">${initials(emp?.name||'')}</div><span>${esc(emp?.name||p.empId)}</span></div></td><td>${fmtMonth(p.month)}</td><td>${fmtBDT(p.basic)}</td><td>${fmtBDT(p.gross)}</td><td>${fmtBDT(ded)}</td><td class="font-bold">${fmtBDT(p.net)}</td><td>${badgePay(p.status)}</td><td><div class="table-actions"><button class="btn btn-sm btn-outline" onclick="viewPayslip('${p.id}')">View</button>${markBtn}</div></td></tr>`;
-  }).join(''):`<tr><td colspan="8" class="no-data">No payroll records found</td></tr>`;
+
+// ── LEAVES ──
+let _leaveEmpInit = false;
+async function initLeaveEmpFilter() {
+  if (_leaveEmpInit) return;
+  const sel  = document.getElementById('lv-emp-filter');
+  const emps = await DB.employees.all();
+  emps.forEach(e => sel.add(new Option(e.name, e.id)));
+  _leaveEmpInit = true;
 }
-function markPaid(id){if(!confirm('Mark this payroll as paid?'))return;DB.payroll.markPaid(id);showAlert(document.getElementById('pay-alert'),'Payroll marked as paid.');renderPayroll();}
-function openGenPayroll(){initPayFilters();document.getElementById('gen-pay-msg').style.display='none';document.getElementById('modal-gen-pay').classList.add('open');}
-function generatePayroll(){
-  const mo=document.getElementById('gen-pay-month').value;
-  const empId=document.getElementById('gen-pay-emp').value;
-  const msg=document.getElementById('gen-pay-msg');
-  if(!mo){msg.className='alert alert-danger';msg.textContent='Please select a month.';msg.style.display='block';return;}
-  const emps=empId?[DB.employees.get(empId)].filter(Boolean):DB.employees.all();
-  let generated=0;
-  emps.forEach(e=>{const existing=DB.payroll.byMonth(mo).find(p=>p.empId===e.id);if(!existing){DB.payroll.generate(e.id,mo);generated++;}});
-  msg.className='alert alert-success';
-  msg.textContent=generated?`Generated ${generated} payroll record(s) for ${fmtMonth(mo)}.`:'Payroll already generated for selected employees.';
-  msg.style.display='block';renderPayroll();
+
+async function renderLeaves() {
+  await initLeaveEmpFilter();
+  const stF  = document.getElementById('lv-status-filter').value;
+  const empF = document.getElementById('lv-emp-filter').value;
+  const typF = document.getElementById('lv-type-filter').value;
+  const emps = await DB.employees.all();
+  let lvs    = await DB.leaves.all();
+  if (stF)  lvs = lvs.filter(l => l.status === stF);
+  if (empF) lvs = lvs.filter(l => l.empId === empF);
+  if (typF) lvs = lvs.filter(l => l.type === typF);
+
+  document.getElementById('lv-tbody').innerHTML = lvs.length ? lvs.map(l => {
+    const emp     = emps.find(e => e.id === l.empId);
+    const actions = l.status === 'pending'
+      ? `<button class="btn btn-sm btn-success" onclick="respondLeave('${l.id}','approved')">Approve</button>
+         <button class="btn btn-sm btn-danger"  onclick="respondLeave('${l.id}','rejected')">Reject</button>`
+      : `<span style="font-size:12px;color:var(--muted)">Responded ${fmtDate(l.respondedOn)}</span>`;
+    return `<tr>
+      <td><div class="emp-cell">
+        <div class="avatar ${avClass(emp?.name||'')} avatar-sm" style="width:28px;height:28px;font-size:11px">${initials(emp?.name||'')}</div>
+        <span>${esc(emp?.name || l.empId)}</span>
+      </div></td>
+      <td>${esc(l.type)}</td>
+      <td>${fmtDate(l.start)}</td>
+      <td>${fmtDate(l.end)}</td>
+      <td>${l.days}</td>
+      <td style="max-width:150px">${esc(l.reason)}</td>
+      <td>${fmtDate(l.applied)}</td>
+      <td>${badgeLeave(l.status)}</td>
+      <td><div class="table-actions">${actions}</div></td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="9" class="no-data">No leave records found</td></tr>`;
 }
-function viewPayslip(id){
-  const p=DB.payroll.all().find(x=>x.id===id);if(!p)return;
-  const emp=DB.employees.get(p.empId);
-  document.getElementById('payslip-body').innerHTML=`
-    <div class="payslip"><div class="payslip-header"><h3>ETCBL Global Ltd.</h3><p>Payslip for ${fmtMonth(p.month)}</p><p style="margin-top:6px;font-size:12px;opacity:.6">${p.status==='paid'?'✅ Paid on '+fmtDate(p.paidOn):'⏳ Pending'}</p></div>
-    <div class="payslip-body">
-      <div class="info-grid" style="margin-bottom:18px">
-        <div class="info-item"><label>Employee Name</label><div class="val">${esc(emp?.name||'—')}</div></div>
-        <div class="info-item"><label>Employee ID</label><div class="val">${p.empId}</div></div>
-        <div class="info-item"><label>Designation</label><div class="val">${esc(emp?.designation||'—')}</div></div>
-        <div class="info-item"><label>Department</label><div class="val">${esc(emp?.dept||'—')}</div></div>
+
+async function respondLeave(id, status) {
+  await DB.leaves.respond(id, status, sess.username);
+  showAlert(document.getElementById('leave-alert'), `Leave ${status}.`, status==='approved'?'success':'danger');
+  await renderLeaves();
+}
+
+// ── PAYROLL ──
+let _payFiltersInit = false;
+async function initPayFilters() {
+  if (!_payFiltersInit) {
+    const mSel = document.getElementById('pay-month-filter');
+    ['2026-06','2026-05','2026-04','2026-03'].forEach(m => mSel.add(new Option(fmtMonth(m), m)));
+    const emps = await DB.employees.all();
+    const eSel = document.getElementById('pay-emp-filter');
+    const gSel = document.getElementById('gen-pay-emp');
+    emps.forEach(e => {
+      eSel.add(new Option(e.name, e.id));
+      gSel.add(new Option(e.name, e.id));
+    });
+    _payFiltersInit = true;
+  }
+}
+
+async function renderPayroll() {
+  await initPayFilters();
+  const mo   = document.getElementById('pay-month-filter').value;
+  const empF = document.getElementById('pay-emp-filter').value;
+  const stF  = document.getElementById('pay-status-filter').value;
+  const emps = await DB.employees.all();
+  let recs   = mo ? await DB.payroll.byMonth(mo) : await DB.payroll.all();
+  if (empF)  recs = recs.filter(p => p.empId === empF);
+  if (stF)   recs = recs.filter(p => p.status === stF);
+  recs.sort((a,b) => b.month.localeCompare(a.month));
+
+  const total = recs.reduce((s,p) => s + p.net, 0);
+  document.getElementById('pay-total-row').textContent = recs.length ? `Total Net Pay: ${fmtBDT(total)}` : '';
+
+  document.getElementById('pay-tbody').innerHTML = recs.length ? recs.map(p => {
+    const emp    = emps.find(e => e.id === p.empId);
+    const ded    = p.tax + p.pf + p.otherDed;
+    const markBtn = p.status === 'pending'
+      ? `<button class="btn btn-sm btn-success" onclick="markPaid('${p.id}')">Mark Paid</button>` : '';
+    return `<tr>
+      <td><div class="emp-cell">
+        <div class="avatar ${avClass(emp?.name||'')} avatar-sm" style="width:28px;height:28px;font-size:11px">${initials(emp?.name||'')}</div>
+        <span>${esc(emp?.name || p.empId)}</span>
+      </div></td>
+      <td>${fmtMonth(p.month)}</td>
+      <td>${fmtBDT(p.basic)}</td>
+      <td>${fmtBDT(p.gross)}</td>
+      <td>${fmtBDT(ded)}</td>
+      <td class="font-bold">${fmtBDT(p.net)}</td>
+      <td>${badgePay(p.status)}</td>
+      <td><div class="table-actions">
+        <button class="btn btn-sm btn-outline" onclick="viewPayslip('${p.id}')">View</button>
+        ${markBtn}
+      </div></td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="8" class="no-data">No payroll records found</td></tr>`;
+}
+
+async function markPaid(id) {
+  if (!confirm('Mark this payroll as paid?')) return;
+  await DB.payroll.markPaid(id);
+  showAlert(document.getElementById('pay-alert'), 'Payroll marked as paid.');
+  await renderPayroll();
+}
+
+async function openGenPayroll() {
+  await initPayFilters();
+  document.getElementById('gen-pay-msg').style.display = 'none';
+  document.getElementById('modal-gen-pay').classList.add('open');
+}
+
+async function generatePayroll() {
+  const mo    = document.getElementById('gen-pay-month').value;
+  const empId = document.getElementById('gen-pay-emp').value;
+  const msg   = document.getElementById('gen-pay-msg');
+  const btn   = document.getElementById('gen-pay-btn');
+  if (!mo) { msg.className='alert alert-danger'; msg.textContent='Please select a month.'; msg.style.display='block'; return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+  const emps     = empId ? [await DB.employees.get(empId)].filter(Boolean) : await DB.employees.all();
+  const existing = await DB.payroll.byMonth(mo);
+  const toGen    = emps.filter(e => !existing.find(p => p.empId === e.id));
+
+  for (const e of toGen) await DB.payroll.generate(e.id, mo);
+
+  btn.disabled = false;
+  btn.textContent = 'Generate';
+  msg.className = 'alert alert-success';
+  msg.textContent = toGen.length
+    ? `Generated ${toGen.length} payroll record(s) for ${fmtMonth(mo)}.`
+    : 'Payroll already generated for selected employees.';
+  msg.style.display = 'block';
+  await renderPayroll();
+}
+
+async function viewPayslip(id) {
+  const allPay = await DB.payroll.all();
+  const p = allPay.find(x => x.id === id);
+  if (!p) return;
+  const emp = await DB.employees.get(p.empId);
+  document.getElementById('payslip-body').innerHTML = `
+    <div class="payslip">
+      <div class="payslip-header">
+        <h3>ETCBL Global Ltd.</h3>
+        <p>Payslip for ${fmtMonth(p.month)}</p>
+        <p style="margin-top:6px;font-size:12px;opacity:.6">${p.status==='paid'?'✅ Paid on '+fmtDate(p.paidOn):'⏳ Pending'}</p>
       </div>
-      <div class="separator"></div>
-      <div class="pay-section-title">Earnings</div>
-      <div class="payslip-row"><span>Basic Salary</span><span>${fmtBDT(p.basic)}</span></div>
-      <div class="payslip-row"><span>House Rent Allowance (40%)</span><span>${fmtBDT(p.houseRent)}</span></div>
-      <div class="payslip-row"><span>Medical Allowance</span><span>${fmtBDT(p.medical)}</span></div>
-      <div class="payslip-row"><span>Transport Allowance</span><span>${fmtBDT(p.transport)}</span></div>
-      <div class="payslip-row font-bold" style="color:var(--success)"><span>Gross Salary</span><span>${fmtBDT(p.gross)}</span></div>
-      <div class="pay-section-title">Deductions</div>
-      <div class="payslip-row"><span>Income Tax (5%)</span><span>- ${fmtBDT(p.tax)}</span></div>
-      <div class="payslip-row"><span>Provident Fund (3%)</span><span>- ${fmtBDT(p.pf)}</span></div>
-      <div class="separator"></div>
-      <div class="payslip-row payslip-total"><span>NET SALARY</span><span>${fmtBDT(p.net)}</span></div>
-    </div></div>`;
+      <div class="payslip-body">
+        <div class="info-grid" style="margin-bottom:18px">
+          <div class="info-item"><label>Employee Name</label><div class="val">${esc(emp?.name||'—')}</div></div>
+          <div class="info-item"><label>Employee ID</label><div class="val">${p.empId}</div></div>
+          <div class="info-item"><label>Designation</label><div class="val">${esc(emp?.designation||'—')}</div></div>
+          <div class="info-item"><label>Department</label><div class="val">${esc(emp?.dept||'—')}</div></div>
+        </div>
+        <div class="separator"></div>
+        <div class="pay-section-title">Earnings</div>
+        <div class="payslip-row"><span>Basic Salary</span><span>${fmtBDT(p.basic)}</span></div>
+        <div class="payslip-row"><span>House Rent Allowance (40%)</span><span>${fmtBDT(p.houseRent)}</span></div>
+        <div class="payslip-row"><span>Medical Allowance</span><span>${fmtBDT(p.medical)}</span></div>
+        <div class="payslip-row"><span>Transport Allowance</span><span>${fmtBDT(p.transport)}</span></div>
+        ${p.overtime ? `<div class="payslip-row"><span>Overtime</span><span>${fmtBDT(p.overtime)}</span></div>` : ''}
+        <div class="payslip-row font-bold" style="color:var(--success)"><span>Gross Salary</span><span>${fmtBDT(p.gross)}</span></div>
+        <div class="pay-section-title">Deductions</div>
+        <div class="payslip-row"><span>Income Tax (5%)</span><span>- ${fmtBDT(p.tax)}</span></div>
+        <div class="payslip-row"><span>Provident Fund (3%)</span><span>- ${fmtBDT(p.pf)}</span></div>
+        ${p.otherDed ? `<div class="payslip-row"><span>Other Deductions</span><span>- ${fmtBDT(p.otherDed)}</span></div>` : ''}
+        <div class="separator"></div>
+        <div class="payslip-row payslip-total"><span>NET SALARY</span><span>${fmtBDT(p.net)}</span></div>
+      </div>
+    </div>`;
   document.getElementById('modal-payslip').classList.add('open');
 }
-function closeModal(id){document.getElementById(id).classList.remove('open');}
-document.querySelectorAll('.modal-overlay').forEach(el=>{el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');});});
-renderDashboard();
+
+// ── Utilities ──
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+});
 </script>
 </body>
 </html>
