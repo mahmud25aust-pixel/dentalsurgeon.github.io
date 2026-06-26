@@ -15,6 +15,13 @@ const fdb = firebase.firestore();
 const DB = {
 
   async init() {
+    const timeout = new Promise((_, rej) =>
+      setTimeout(() => rej(new Error('Firebase connection timed out. Please ensure Firestore Database is created in your Firebase Console (console.firebase.google.com → etcbl-hr → Firestore Database → Create database).')), 20000)
+    );
+    await Promise.race([DB._initOnce(), timeout]);
+  },
+
+  async _initOnce() {
     const meta = await fdb.doc('meta/init').get();
     if (!meta.exists) {
       await DB._seed();

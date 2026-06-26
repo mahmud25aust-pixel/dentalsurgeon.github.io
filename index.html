@@ -57,7 +57,23 @@
   async function start() {
     const sess = DB.auth.session();
     if (sess) { window.location.href = sess.role === 'admin' ? 'admin.html' : 'employee.html'; return; }
-    await DB.init();
+    try {
+      await DB.init();
+    } catch(e) {
+      document.getElementById('page-loader').innerHTML =
+        `<div style="text-align:center;padding:30px;max-width:420px">
+          <div style="font-size:28px;margin-bottom:12px">&#9888;</div>
+          <div style="font-weight:700;font-size:16px;color:#dc2626;margin-bottom:10px">Cannot connect to database</div>
+          <div style="font-size:13px;color:#64748b;line-height:1.7">
+            Go to <strong>console.firebase.google.com</strong><br>
+            &rarr; Select project <strong>etcbl-hr</strong><br>
+            &rarr; <strong>Firestore Database</strong> &rarr; <strong>Create database</strong><br>
+            &rarr; Start in <strong>test mode</strong> &rarr; Done
+          </div>
+          <button onclick="location.reload()" style="margin-top:18px;padding:8px 20px;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">Retry</button>
+        </div>`;
+      return;
+    }
     document.getElementById('page-loader').style.display = 'none';
     document.getElementById('login-wrap').style.display = '';
     document.getElementById('username').focus();
